@@ -1,0 +1,144 @@
+
+sudo apt-get -y install mysql-server mysql-client
+sudo apt-get -y install mysql-workbench
+
+数据库一共有三种模型：
+层次模型
+网状模型
+关系模型--->方便理解使用
+
+名称	类型	说明
+INT	整型	4字节整数类型，范围约+/-21亿
+BIGINT	长整型	8字节整数类型，范围约+/-922亿亿
+REAL	浮点型	4字节浮点数，范围约+/-1038
+DOUBLE	浮点型	8字节浮点数，范围约+/-10308
+DECIMAL(M,N)	高精度小数	由用户指定精度的小数，例如，DECIMAL(20,10)表示一共20位，其中小数10位，通常用于财务计算
+CHAR(N)	定长字符串	存储指定长度的字符串，例如，CHAR(100)总是存储100个字符的字符串
+VARCHAR(N)	变长字符串	存储可变长度的字符串，例如，VARCHAR(100)可以存储0~100个字符的字符串
+BOOLEAN	布尔类型	存储True或者False
+DATE	日期类型	存储日期，例如，2018-06-22
+TIME	时间类型	存储时间，例如，12:20:59
+DATETIME	日期和时间类型	
+
+一个整型字段如果为NULL不表示它的值为0，同样的，一个字符串型字段为NULL也不表示它的值为空串''
+主键最好是完全业务无关的字段，我们一般把这个字段命名为id。常见的可作为id字段的类型有：
+    自增整数类型：数据库会在插入数据时自动为每一条记录分配一个自增整数，这样我们就完全不用担心主键重复，也不用自己预先生成主键；
+    全局唯一GUID类型：使用一种全局唯一的字符串作为主键，类似8f55d96b-8acc-4636-8cb8-76bf8abc2f57。GUID算法通过网卡MAC地址、时间戳和随机数保证任意计算机在任意时间生成的字符串都是不同的，大部分编程语言都内置了GUID算法，可以自己预算出主键。
+
+选择查询：select id, score from students;
+        SELECT id, score points(重新命名), name FROM students;
+        SELECT id, score points, name FROM students WHERE gender = 'M';（查询+WHERE条件）
+条件查询：SELECT * FROM students WHERE score >= 80;
+        SELECT * FROM students WHERE score >= 80 AND gender = 'M';（按AND条件查询）
+        SELECT * FROM students WHERE score >= 80 OR gender = 'M';（按OR条件查询）
+        ELECT * FROM students WHERE NOT class_id = 2;（按NOT条件查询）
+        SELECT * FROM students WHERE (score < 80 OR score > 90) AND gender = 'M';（按多个条件查询）
+排序查询：SELECT id, name, gender, score FROM students ORDER BY score;（低到高）
+        SELECT id, name, gender, score FROM students ORDER BY score DESC;（高到低）
+        SELECT id, name, gender, score FROM students ORDER BY score DESC, gender;（相同按性别）
+        select id, name, gender, score from students where class_id = 1 order by score desc;（有where，order by 应该放在其后面）
+分页查询：select id, name, gender, score from students order by score desc limit 3（3条） offset 0（开始）;（最多3条）
+        select id, name, gender, score from students order by score desc limit 3（3条） offset 3（开始）;（第二页，后面0+3，依次算，如果limit是5，则，0+5）
+        分页查询的关键在于，首先要确定每页需要显示的结果数量pageSize（这里是3），然后根据当前页的索引pageIndex（从1开始），确定LIMIT和OFFSET应该设定的值：
+        LIMIT总是设定为pageSize；
+        OFFSET计算公式为pageSize * (pageIndex - 1)
+聚合查询：SELECT COUNT(*) FROM students;（查询所有行数）
+        SELECT COUNT(*) num FROM students;（设置别名）
+        SELECT COUNT(*) boys FROM students WHERE gender = 'M';（聚合查询并设置WHERE条件）
+        SELECT AVG(score) average FROM students WHERE gender = 'M';（聚合查询计算男生平均成绩）  
+        SELECT AVG(score) average FROM students WHERE gender = 'X';（WHERE条件gender = 'X'匹配不到任何行） 
+        SELECT COUNT(*) num FROM students GROUP BY class_id;（分组查询）
+        SELECT class_id, COUNT(*) num FROM students GROUP BY class_id;（class_id分组）
+        SELECT name, class_id, COUNT(*) num FROM students GROUP BY class_id;
+执行这条查询我们会得到一个语法错误，因为在任意一个分组中，只有class_id都相同，name是不同的，SQL引擎不能把多个name的值放入一行记录中。因此，聚合查询的列中，只能放入分组的列
+        select avg(score) avgerage , class_id, count(*) from students group by class_id;（查询各个班平均分）
+        select avg(score) avgerage , class_id, gender, count(*) from students group by class_id, gender;（查询各个班男女平均分数）
+多表查询：SELECT * FROM students, classes;
+查询的结果也是一个二维表，它是students表和classes表的“乘积”，即students表的每一行与classes表的每一行都两两拼在一起返回。结果集的列数是students表和classes表的列数之和，行数是students表和classes表的行数之积
+         select s.id sid, s.name, s.gender, s.score, c.id cid, c.name cname from students s, classes c;（别名查询）
+         select s.id sid, s.name, s.gender, s.score, c.id cid, c.name cname from students s, classes c where s.gender = 'M' and c.id = 1;（多表查询加where）
+连接查询：select s.id, s.name, s.class_id, c.name class_name, s.gender, s.score from students s inner join classes c on s.class_id = c.id;（内连接（选出所有学生，同时返回班级名称））
+注意INNER JOIN查询的写法是：
+1.先确定主表，仍然使用FROM <表1>的语法；
+2.再确定需要连接的表，使用INNER JOIN <表2>的语法；
+3.然后确定连接条件，使用ON <条件...>，这里的条件是s.class_id = c.id，表示students表的class_id列与classes表的id列相同的行需要连接；
+4.可选：加上WHERE子句、ORDER BY等子句
+         select s.id, s.name, s.class_id, c.name class_name, s.gender, s.score from students s right outer join classes c on s.class_id = c.id;（外连接）
+         SELECT s.id, s.name, s.class_id, c.name class_name, s.gender, s.score FROM students s FULL OUTER JOIN classes c ON s.class_id = c.id;（full连接）
+mysql的增、删、改，对应的SQL语句分别是：
+INSERT：插入新记录；
+UPDATE：更新已有记录；
+DELETE：删除已有记录。         
+inster语法：INSERT INTO <表名> (字段1, 字段2, ...) VALUES (值1, 值2, ...);
+         INSERT INTO students (class_id, name, gender, score) VALUES (2, '大牛', 'M', 80);（单行）
+         INSERT INTO students (class_id, name, gender, score) VALUES (10, 'a', 'M', 60), (11, 's', 'M', 75);（插入多行）
+update语法：UPDATE <表名> SET 字段1=值1, 字段2=值2, ... WHERE ...;
+         UPDATE students SET name='大牛', score=66 WHERE id=1;（更新id=1的记录）
+         UPDATE students SET name='小牛', score=77 WHERE id>=5 AND id<=7;（更新id=5,6,7的记录
+）
+         UPDATE students SET score=score+10 WHERE score<80;(加10分，更新score<80的记录)
+         UPDATE students SET score=60;（千万不能顺便这样操作）
+         UPDATE students SET name='大宝' WHERE id=999;（不会报错，也不会有任何记录被更新）
+delete语法：DELETE FROM <表名> WHERE ...;
+         DELETE FROM students WHERE id=1;（删除id=1的记录）
+         DELETE FROM students WHERE id>=5 AND id<=7;（删除id=5,6,7的记录）
+         DELETE FROM students WHERE id=999;（不会报错，也不会有任何记录被删除）
+         -- DELETE FROM students; --（注意，不可随意操作）
+
+
+连接：以只安装MySQL Client，然后连接到远程MySQL Server。假设远程MySQL Server的IP地址是10.0.1.99，那么就使用-h指定IP或域名：mysql -h 10.0.1.99 -u root -p
+         CREATE DATABASE（tables） test;（创建库，表）
+         DROP DATABASE（tables） test;（删除库，表）
+注意：删除一个数据库将导致该数据库的所有表全部被删除。
+         DESC students;（查看一个表的结构）
+         SHOW CREATE TABLE students;（查看创建表的SQL语句）
+---{ALTER TABLE students ADD COLUMN birth VARCHAR(10) NOT NULL;给students表新增一列birth
+ALTER TABLE students CHANGE COLUMN birth birthday VARCHAR(20) NOT NULL;把列名改为birthday，类型改为VARCHAR(20)
+ALTER TABLE students DROP COLUMN birthday;删除列}---
+          REPLACE INTO students (id, class_id, name, gender, score) VALUES (1, 1, '小明', 'F', 99);（替换）
+          INSERT IGNORE INTO students (id, class_id, name, gender, score) VALUES (1, 1, '小明', 'F', 99);（插入或忽略）
+          INSERT INTO students (id, class_id, name, gender, score) VALUES (1, 1, '小明', 'F', 99) ON DUPLICATE KEY UPDATE name='小明', gender='F', score=99;（插入或更新）
+          CREATE TABLE students_of_class1 SELECT * FROM students WHERE class_id=1;（快照）新创建的表结构和SELECT使用的表结构完全一致
+          
+
+
+数据库事务：
+    转账，UPDATE accounts SET balance = balance - 100 WHERE id = 1;（第一步：将id=1的A账户余额减去100）
+          UPDATE accounts SET balance = balance + 100 WHERE id = 2;（第二步：将id=2的B账户余额加上100）
+---注意：必须全部执行，或者，由于某些原因，如果第一条语句成功，第二条语句失败，就必须全部撤销---
+A：Atomic，原子性，将所有SQL作为原子工作单元执行，要么全部执行，要么全部不执行；
+C：Consistent，一致性，事务完成后，所有数据的状态都是一致的，即A账户只要减去了100，B账户则必定加上了100；
+I：Isolation，隔离性，如果有多个事务并发执行，每个事务作出的修改必须与其他事务隔离；
+D：Duration，持久性，即事务完成后，对数据库数据的修改被持久化存储
+BEGIN;（开启事务）
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;
+COMMIT;（提交事务）
+ROLLBACK；（回滚事务）
+COMMIT是指提交事务，即试图把事务内的所有SQL所做的修改永久保存。如果COMMIT语句执行失败了，整个事务也会失败。
+有些时候，我们希望主动让事务失败，这时，可以用ROLLBACK回滚事务，整个事务会失败
+https://www.liaoxuefeng.com/wiki/1177760294764384/1179611198786848
+
+
+
+       mysql的安装文档：
+https://blog.csdn.net/qq_21153619/article/details/81529880#1%20MySQL%E5%A4%9A%E5%AE%9E%E4%BE%8B
+       mysql五大常见高可用方案
+https://www.cnblogs.com/EasonJim/p/7635366.html
+       mysql-cluster搭建：
+https://www.jianshu.com/p/2ec3fd2ba77f
+       搭建一个 MySQL 分布式集群
+https://www.jianshu.com/p/cf4da125aa43
+
+
+
+
+
+
+
+
+拷贝时间天数选择：select * from no_rule_video where starttime >= '2020-04-20' AND starttime < '2020-04-21';
+导出所有的数据库内容：sudo docker exec -it dbb mysqldump -uroot -p123456 --all-databases > /home/user/Desktop/all.sql
+拷贝统计时间的数据（A）：echo "use guiyang-device;""select * from no_rule_video where starttime >= '2020-04-20' AND starttime < '2020-04-21';" | sudo docker exec -i dbb mysql -uroot -p123456 > /home/user/Desktop/20.sql
+拷贝更加具体（B）：echo "use guiyang-device;""select noruletype, shenxunshi, starttime, end_time from no_rule_video where starttime >= '2020-04-20' AND starttime < '2020-04-21';" | sudo docker exec -i dbb mysql -uroot -p123456 > /home/user/Desktop/as.sql
+更改名字（C）：echo "use guiyang-device;""select noruletype "节点", shenxunshi "机位", starttime "开始日期", end_time "结束日期" from no_rule_video where starttime >= '2020-04-20' AND starttime < '2020-04-21';" | sudo docker exec -i dbb mysql -uroot -p123456 > /home/user/Desktop/as.sql
